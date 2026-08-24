@@ -28,6 +28,21 @@ The system is designed around a production question that is broader than “is t
 
 ---
 
+## Minimum reproducible run
+
+```bash
+git clone https://github.com/seydivakkas/WeaveVision.git
+cd WeaveVision
+uv sync --extra dev --frozen
+uv run pytest -q
+uv run weavevision doctor
+uv run weavevision serve
+```
+
+The commands mirror the repository's CI/development contract. Model-backed inference additionally requires the corresponding validated model/threshold artifacts; the application is intentionally capable of degraded operation when those artifacts are unavailable.
+
+---
+
 ## Decision model
 
 WeaveVision does not force every sample into a binary pass/fail output.
@@ -74,12 +89,15 @@ PASS · REVIEW · FAIL · ABSTAIN
 
 | Signal | Repository evidence |
 |---|---|
-| Automated tests | **262 / 262 passing** |
-| Static quality | Ruff + mypy validation in the documented engineering workflow |
+| Automated tests | **262 / 262 passing** in the documented validation snapshot |
+| Live repository health | GitHub Actions `CI` workflow badge above |
+| Static quality | Ruff + mypy validation in the CI engineering workflow |
 | ML framework | PyTorch + Anomalib |
 | Deployment | OpenVINO-oriented inference/export path |
 | Drift lifecycle | EWMA · CUSUM · PSI monitoring |
 | Safety behavior | Explicit `REVIEW` and `ABSTAIN` states instead of forced automation |
+
+[Evidence index](docs/evidence/README.md) · [Known limitations](KNOWN_LIMITATIONS.md)
 
 ---
 
@@ -140,9 +158,11 @@ Continue      Review Samples
 
 ## Documentation
 
-The root README is intentionally concise and portfolio-oriented. The original full engineering documentation is preserved here:
-
-### **[Full Technical Documentation →](docs/README_FULL.md)**
+- [Architecture index](docs/architecture/README.md)
+- [Evidence index](docs/evidence/README.md)
+- [Known limitations](KNOWN_LIMITATIONS.md)
+- [Full technical documentation](docs/README_FULL.md)
+- [Portable project knowledge base](SKILLS.md)
 
 The full document covers architecture, phased acceptance gates, dataset governance, model lifecycle, UI flows, verified metrics, security boundaries, deployment and roadmap details.
 
@@ -158,6 +178,6 @@ WeaveVision is an engineering decision-support system. A model output is not equ
 
 **Detect anomalies · quantify uncertainty · govern the model lifecycle**
 
-[GitHub Profile](https://github.com/seydivakkas) · [Full Documentation](docs/README_FULL.md)
+[GitHub Profile](https://github.com/seydivakkas) · [Evidence](docs/evidence/README.md) · [Full Documentation](docs/README_FULL.md)
 
 </div>
