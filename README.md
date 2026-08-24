@@ -8,7 +8,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.8-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)
 ![Anomalib](https://img.shields.io/badge/Anomalib-2.5-009688?style=flat-square)
 ![OpenVINO](https://img.shields.io/badge/OpenVINO-Deployment-6F42C1?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-262%2F262%20passing-2EA44F?style=flat-square)
+[![CI](https://github.com/seydivakkas/WeaveVision/actions/workflows/ci.yml/badge.svg)](https://github.com/seydivakkas/WeaveVision/actions/workflows/ci.yml)
 
 **A local-first industrial vision system that learns from normal textile samples, localizes visual anomalies and turns model uncertainty into explicit quality-control decisions.**
 
