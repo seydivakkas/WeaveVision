@@ -117,9 +117,7 @@ def test_pixel_calibration_rejects_test_split_and_partial_evidence() -> None:
 
 def test_pixel_calibration_rejects_non_finite_and_misaligned_maps() -> None:
     with pytest.raises(ValueError, match="finite normal validation maps"):
-        calibrate_pixel_threshold(
-            np.array([[[0.1, np.nan]]]), None, None, split="validation"
-        )
+        calibrate_pixel_threshold(np.array([[[0.1, np.nan]]]), None, None, split="validation")
 
     normal_maps = np.array([[[0.1, 0.2], [0.2, 0.1]]])
     with pytest.raises(ValueError, match="identical shapes"):
