@@ -97,9 +97,7 @@ def test_pixel_calibration_calibrates_normal_only_and_masked_evidence() -> None:
 
     anomaly_maps = np.array([[[0.1, 0.9], [0.8, 0.1]]])
     masks = np.array([[[0, 1], [1, 0]]])
-    locked, method = calibrate_pixel_threshold(
-        normal_maps, anomaly_maps, masks, split="validation"
-    )
+    locked, method = calibrate_pixel_threshold(normal_maps, anomaly_maps, masks, split="validation")
     assert locked > 0
     assert method == "pixel_f1"
 
