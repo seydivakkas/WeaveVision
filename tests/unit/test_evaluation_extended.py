@@ -28,8 +28,36 @@ def test_anomaly_validation_produces_locked_threshold() -> None:
     assert artifact.method == "recall_at_fpr_then_f1"
 
 
-def test_calibration_rejects_invalid_scores_and_calibrates_pixels() -> None:
-    with pytest.raises(ValueError, match="finite"):
+def test_image_calibration_rejects_test_split_and_invalid_fpr() -> None:
+    with pytest.raises(ValueError, match="validation split"):
+        calibrate_image_threshold(
+            np.array([0.1, 0.2]),
+            np.array([0.8, 0.9]),
+            split="test",
+            model_id="model",
+            dataset_manifest_sha256="a" * 64,
+        )
+    with pytest.raises(ValueError, match="strictly between 0 and 1"):
+        calibrate_image_threshold(
+            np.array([0.1, 0.2]),
+            np.array([0.8, 0.9]),
+            split="validation",
+            model_id="model",
+            dataset_manifest_sha256="a" * 64,
+            target_normal_fpr=1.0,
+        )
+
+
+def test_image_calibration_rejects_empty_and_non_finite_evidence() -> None:
+    with pytest.raises(ValueError, match="finite validation normal scores"):
+        calibrate_image_threshold(
+            np.array([]),
+            None,
+            split="validation",
+            model_id="model",
+            dataset_manifest_sha256="a" * 64,
+        )
+    with pytest.raises(ValueError, match="finite validation normal scores"):
         calibrate_image_threshold(
             np.array([np.nan]),
             None,
@@ -37,19 +65,79 @@ def test_calibration_rejects_invalid_scores_and_calibrates_pixels() -> None:
             model_id="model",
             dataset_manifest_sha256="a" * 64,
         )
+    with pytest.raises(ValueError, match="anomaly validation scores must be finite"):
+        calibrate_image_threshold(
+            np.array([0.1, 0.2]),
+            np.array([0.8, np.inf]),
+            split="validation",
+            model_id="model",
+            dataset_manifest_sha256="a" * 64,
+        )
+
+
+def test_normal_only_image_calibration_is_explicitly_provisional() -> None:
+    artifact = calibrate_image_threshold(
+        np.array([0.1, 0.2, 0.3, 0.4]),
+        None,
+        split="validation",
+        model_id="model",
+        dataset_manifest_sha256="a" * 64,
+    )
+    assert artifact.status == "PROVISIONAL_NORMAL_ONLY"
+    assert artifact.method == "normal_quantile_0.995"
+
+
+def test_pixel_calibration_calibrates_normal_only_and_masked_evidence() -> None:
     normal_maps = np.array([[[0.1, 0.2], [0.2, 0.1]]])
     provisional, provisional_method = calibrate_pixel_threshold(
         normal_maps, None, None, split="validation"
     )
     assert provisional > 0
     assert "quantile" in provisional_method
+
     anomaly_maps = np.array([[[0.1, 0.9], [0.8, 0.1]]])
     masks = np.array([[[0, 1], [1, 0]]])
-    locked, method = calibrate_pixel_threshold(normal_maps, anomaly_maps, masks, split="validation")
+    locked, method = calibrate_pixel_threshold(
+        normal_maps, anomaly_maps, masks, split="validation"
+    )
     assert locked > 0
     assert method == "pixel_f1"
+
+
+def test_pixel_calibration_rejects_test_split_and_partial_evidence() -> None:
+    normal_maps = np.array([[[0.1, 0.2], [0.2, 0.1]]])
+    anomaly_maps = np.array([[[0.1, 0.9], [0.8, 0.1]]])
+    masks = np.array([[[0, 1], [1, 0]]])
+
     with pytest.raises(ValueError, match="validation-only"):
         calibrate_pixel_threshold(normal_maps, None, None, split="test")
+    with pytest.raises(ValueError, match="supplied together"):
+        calibrate_pixel_threshold(normal_maps, anomaly_maps, None, split="validation")
+    with pytest.raises(ValueError, match="supplied together"):
+        calibrate_pixel_threshold(normal_maps, None, masks, split="validation")
+
+
+def test_pixel_calibration_rejects_non_finite_and_misaligned_maps() -> None:
+    with pytest.raises(ValueError, match="finite normal validation maps"):
+        calibrate_pixel_threshold(
+            np.array([[[0.1, np.nan]]]), None, None, split="validation"
+        )
+
+    normal_maps = np.array([[[0.1, 0.2], [0.2, 0.1]]])
+    with pytest.raises(ValueError, match="identical shapes"):
+        calibrate_pixel_threshold(
+            normal_maps,
+            np.array([[[0.8, 0.9]]]),
+            np.array([[[1], [0]]]),
+            split="validation",
+        )
+    with pytest.raises(ValueError, match="must be finite"):
+        calibrate_pixel_threshold(
+            normal_maps,
+            np.array([[[0.8, np.inf], [0.7, 0.6]]]),
+            np.array([[[1, 1], [0, 0]]]),
+            split="validation",
+        )
 
 
 def test_recall_at_fpr_and_single_class_metric() -> None:
