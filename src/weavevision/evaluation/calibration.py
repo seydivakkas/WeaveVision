@@ -34,13 +34,17 @@ def calibrate_image_threshold(
         Locked or explicitly provisional threshold artifact.
 
     Raises:
-        ValueError: If sealed test data or empty normal scores are supplied.
+        ValueError: If sealed test data, invalid FPR configuration, or invalid scores are supplied.
     """
     if split != "validation":
         raise ValueError("threshold calibration is allowed only on the validation split")
+    if not 0.0 < target_normal_fpr < 1.0:
+        raise ValueError("target_normal_fpr must be strictly between 0 and 1")
+
     normal = np.asarray(normal_scores, dtype=np.float64).reshape(-1)
     if normal.size == 0 or not np.all(np.isfinite(normal)):
         raise ValueError("finite validation normal scores are required")
+
     if anomaly_scores is None or np.asarray(anomaly_scores).size == 0:
         threshold = float(np.quantile(normal, 0.995))
         method = "normal_quantile_0.995"
@@ -63,6 +67,7 @@ def calibrate_image_threshold(
         )
         method = "recall_at_fpr_then_f1"
         status = "LOCKED"
+
     return ThresholdArtifact(
         threshold_id=f"thr_{uuid4().hex}",
         model_id=model_id,
@@ -83,18 +88,37 @@ def calibrate_pixel_threshold(
     *,
     split: str,
 ) -> tuple[float, str]:
-    """Calibrate a pixel threshold from validation maps and optional masks."""
+    """Calibrate a pixel threshold from validation maps and optional masks.
+
+    Partial anomaly evidence is rejected because a score map without its aligned mask,
+    or vice versa, cannot produce a trustworthy pixel-level calibration target.
+    """
     if split != "validation":
         raise ValueError("pixel threshold calibration is validation-only")
+
     normal = np.asarray(normal_maps, dtype=np.float64).reshape(-1)
-    if normal.size == 0:
-        raise ValueError("normal validation maps are required")
-    if anomaly_maps is None or anomaly_masks is None:
+    if normal.size == 0 or not np.all(np.isfinite(normal)):
+        raise ValueError("finite normal validation maps are required")
+
+    if (anomaly_maps is None) != (anomaly_masks is None):
+        raise ValueError("anomaly_maps and anomaly_masks must be supplied together")
+
+    if anomaly_maps is None and anomaly_masks is None:
         return float(np.quantile(normal, 0.999)), "normal_pixel_quantile_0.999"
-    scores = np.concatenate((normal, np.asarray(anomaly_maps, dtype=np.float64).reshape(-1)))
-    labels = np.concatenate(
-        (np.zeros(normal.size, dtype=int), np.asarray(anomaly_masks).astype(bool).reshape(-1))
-    )
+
+    anomaly = np.asarray(anomaly_maps, dtype=np.float64)
+    masks = np.asarray(anomaly_masks)
+    if anomaly.size == 0 or masks.size == 0:
+        raise ValueError("anomaly maps and masks must be non-empty")
+    if anomaly.shape != masks.shape:
+        raise ValueError("anomaly maps and masks must have identical shapes")
+    if not np.all(np.isfinite(anomaly)):
+        raise ValueError("anomaly validation maps must be finite")
+
+    anomaly_flat = anomaly.reshape(-1)
+    mask_flat = masks.astype(bool).reshape(-1)
+    scores = np.concatenate((normal, anomaly_flat))
+    labels = np.concatenate((np.zeros(normal.size, dtype=int), mask_flat))
     candidates = np.quantile(scores, np.linspace(0.8, 0.9999, 256))
     threshold = max(
         candidates,
